@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendrier Congés Luxembourg</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Gestion des congés et absences - Luxembourg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Congés LU">
+    <link rel="manifest" href="manifest.json">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        select, input[type="date"], input[type="text"], input[type="number"], button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        select, input[type="date"], input[type="text"], input[type="number"] {
+            background: rgba(255,255,255,0.9);
+            color: #333;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #da190b; }
+        button.secondary { background: #2196F3; }
+        button.secondary:hover { background: #1976D2; }
+        button.warning { background: #FF9800; }
+        button.warning:hover { background: #F57C00; }
+        button.purple { background: #9C27B0; }
+        button.purple:hover { background: #7B1FA2; }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 25px;
+            height: 25px;
+            border-radius: 5px;
+        }
+
+        .color-conge { background: linear-gradient(135deg, #4CAF50, #8BC34A); }
+        .color-maladie { background: linear-gradient(135deg, #f44336, #E91E63); }
+        .color-recuperation { background: linear-gradient(135deg, #FF9800, #FFC107); }
+        .color-ferie { background: linear-gradient(135deg, #9C27B0, #673AB7); }
+        .color-weekend { background: linear-gradient(135deg, #607D8B, #78909C); }
+        .color-today { background: linear-gradient(135deg, #00BCD4, #03A9F4); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        .sidebar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .employee-count {
+            text-align: center;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-bottom: 15px;
+        }
+
+        .employee-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .employee-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .employee-item:hover, .employee-item.active {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+
+        .employee-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .employee-info { flex: 1; min-width: 0; }
+        .employee-name { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .employee-stats { font-size: 0.75rem; opacity: 0.8; margin-top: 2px; }
+        .solde-warning { color: #f44336; }
+        .solde-ok { color: #4CAF50; }
+
+        .calendar-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .month-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .month-navigation h2 { font-size: 1.5rem; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .day-header {
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+
+        .day-cell {
+            min-height: 100px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .day-cell:hover { background: rgba(255,255,255,0.15); }
+        .day-cell.other-month { opacity: 0.3; }
+        .day-cell.weekend { background: rgba(96, 125, 139, 0.3); }
+        .day-cell.ferie { background: rgba(156, 39, 176, 0.4); }
+        .day-cell.today { border: 2px solid #00BCD4; box-shadow: 0 0 10px rgba(0, 188, 212, 0.5); }
+
+        .day-number { font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; }
+        .day-ferie-name { font-size: 0.65rem; color: #CE93D8; margin-bottom: 5px; }
+
+        .day-events { display: flex; flex-direction: column; gap: 2px; }
+
+        .event-badge {
+            font-size: 0.65rem;
+            padding: 2px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .event-conge { background: rgba(76, 175, 80, 0.8); }
+        .event-maladie { background: rgba(244, 67, 54, 0.8); }
+        .event-recuperation { background: rgba(255, 152, 0, 0.8); }
+        .half-day-indicator { font-size: 0.6rem; opacity: 0.9; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group select, .form-group input[type="date"], .form-group input[type="text"], .form-group input[type="number"] { width: 100%; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .absence-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .stats-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value { font-size: 1.8rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.8; }
+
+        .year-view {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        @media (max-width: 1400px) { .year-view { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 1000px) { .year-view { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .year-view { grid-template-columns: 1fr; } }
+
+        .mini-month {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .mini-month h4 { text-align: center; margin-bottom: 10px; font-size: 0.9rem; }
+
+        .mini-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .mini-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .mini-day.weekend { background: rgba(96, 125, 139, 0.3); }
+        .mini-day.ferie { background: rgba(156, 39, 176, 0.5); }
+        .mini-day.has-conge { background: rgba(76, 175, 80, 0.6); }
+        .mini-day.has-maladie { background: rgba(244, 67, 54, 0.6); }
+        .mini-day.has-recuperation { background: rgba(255, 152, 0, 0.6); }
+        .mini-day.today { border: 2px solid #00BCD4; }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active { background: #4CAF50; }
+        .tab:hover:not(.active) { background: rgba(255,255,255,0.2); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        .table-container { overflow-x: auto; margin-top: 20px; }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .data-table th { background: rgba(255,255,255,0.1); font-weight: 600; }
+        .data-table tr:hover { background: rgba(255,255,255,0.05); }
+
+        /* Employee edit styles */
+        .employee-edit-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .employee-edit-item.inactive {
+            opacity: 0.5;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .day-cell { min-height: 60px; padding: 5px; }
+            .day-number { font-size: 0.9rem; }
+            .event-badge { font-size: 0.55rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .controls { gap: 5px; }
+            .controls button { padding: 8px 12px; font-size: 0.85rem; }
+            .employee-edit-item { grid-template-columns: auto 1fr; }
+            .employee-edit-item > *:nth-child(3),
+            .employee-edit-item > *:nth-child(4) { grid-column: span 1; }
+        }
+
+        /* Impression */
+        @media print {
+            body { background: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print { display: none !important; }
+            .container { max-width: 100%; padding: 10px; }
+            header { background: #f0f0f0 !important; color: black !important; padding: 10px; margin-bottom: 10px; }
+            .main-layout { display: block; }
+            .sidebar { display: none; }
+            .calendar-container { background: white !important; border: 1px solid #ccc; padding: 10px; }
+            .day-cell { background: #f9f9f9 !important; border: 1px solid #ddd; min-height: 80px; color: black; }
+            .day-cell.weekend { background: #e0e0e0 !important; }
+            .day-cell.ferie { background: #e1bee7 !important; }
+            .day-cell.today { border: 2px solid #00BCD4 !important; }
+            .day-header { background: #e0e0e0 !important; color: black; }
+            .day-number { color: black; }
+            .day-ferie-name { color: #7B1FA2; }
+            .event-badge { border: 1px solid #999; color: black !important; }
+            .event-conge { background: #A5D6A7 !important; }
+            .event-maladie { background: #EF9A9A !important; }
+            .event-recuperation { background: #FFCC80 !important; }
+            .month-navigation h2 { color: black; }
+            .print-header { display: block !important; text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #333; }
+            .print-footer { display: block !important; text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 0.8rem; }
+            .stats-panel { background: white !important; color: black; border: 1px solid #ccc; page-break-before: always; }
+            .stat-card { background: #f5f5f5 !important; border: 1px solid #ddd; }
+            .stat-value { color: #333 !important; }
+            table { width: 100%; border-collapse: collapse; }
+            table th, table td { border: 1px solid #ccc; padding: 8px; color: black !important; }
+            table th { background: #e0e0e0 !important; }
+        }
+
+        .print-header, .print-footer { display: none; }
+
+        /* PWA Install Banner */
+        .pwa-install-banner {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1001;
+            text-align: center;
+        }
+
+        .pwa-install-banner.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        .pwa-install-banner button { margin: 5px; }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1002;
+            display: none;
+        }
+
+        .toast.show {
+            display: block;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="print-header">
+            <h1>📅 Calendrier de Gestion des Congés - Luxembourg</h1>
+            <p id="printDate"></p>
+        </div>
+
+        <header class="no-print">
+            <h1>📅 Calendrier de Gestion des Congés</h1>
+        </header>
+
+        <div class="controls no-print">
+            <div class="control-group">
+                <label>Année:</label>
+                <select id="yearSelect"></select>
+            </div>
+            <div class="control-group">
+                <label>Mois:</label>
+                <select id="monthSelect">
+                    <option value="0">Janvier</option>
+                    <option value="1">Février</option>
+                    <option value="2">Mars</option>
+                    <option value="3">Avril</option>
+                    <option value="4">Mai</option>
+                    <option value="5">Juin</option>
+                    <option value="6">Juillet</option>
+                    <option value="7">Août</option>
+                    <option value="8">Septembre</option>
+                    <option value="9">Octobre</option>
+                    <option value="10">Novembre</option>
+                    <option value="11">Décembre</option>
+                </select>
+            </div>
+            <button onclick="goToToday()" class="secondary">📍 Aujourd'hui</button>
+            <button onclick="openAddAbsenceModal()">➕ Absence</button>
+            <button onclick="openReportModal()" class="warning">🔄 Reports</button>
+            <button onclick="exportExcel()" class="purple" id="excelBtn">📊 Excel</button>
+            <button onclick="printCalendar()" class="secondary">🖨️ Imprimer</button>
+            <button onclick="exportData()" class="secondary">💾 Backup</button>
+            <button onclick="importData()" class="secondary">📂 Restaurer</button>
+        </div>
+
+        <div class="legend no-print">
+            <div class="legend-item">
+                <div class="legend-color color-conge"></div>
+                <span>Congés</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color color-maladie"></div>
+                <span>Maladie</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color color-recuperation"></div>
+                <span>Récupération</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color color-ferie"></div>
+                <span>Férié</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color color-weekend"></div>
+                <span>Week-end</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color color-today"></div>
+                <span>Aujourd'hui</span>
+            </div>
+            <div class="legend-item">
+                <span style="font-size: 0.8rem;">M=Matin | AM=Après-midi</span>
+            </div>
+        </div>
+
+        <div class="tabs no-print">
+            <button class="tab active" onclick="switchTab('month')">📆 Mensuel</button>
+            <button class="tab" onclick="switchTab('year')">📊 Annuel</button>
+            <button class="tab" onclick="switchTab('stats')">📈 Statistiques</button>
+        </div>
+
+        <div class="main-layout">
+            <aside class="sidebar no-print">
+                <h3>👥 Employés</h3>
+                <div class="employee-count" id="employeeCount"></div>
+                <div class="employee-list" id="employeeList"></div>
+                <div style="margin-top: 15px;">
+                    <button onclick="openEditEmployeesModal()" style="width: 100%;">✏️ Gérer les employés</button>
+                </div>
+            </aside>
+
+            <main>
+                <div id="monthView" class="tab-content active">
+                    <div class="calendar-container">
+                        <div class="month-navigation">
+                            <button onclick="changeMonth(-1)" class="no-print">◀</button>
+                            <h2 id="currentMonthYear"></h2>
+                            <button onclick="changeMonth(1)" class="no-print">▶</button>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid"></div>
+                    </div>
+                </div>
+
+                <div id="yearView" class="tab-content">
+                    <div class="calendar-container">
+                        <h2 style="text-align: center; margin-bottom: 20px;" id="yearViewTitle"></h2>
+                        <div class="year-view" id="yearViewGrid"></div>
+                    </div>
+                </div>
+
+                <div id="statsView" class="tab-content">
+                    <div class="stats-panel">
+                        <h2 style="text-align: center; margin-bottom: 20px;">📊 Statistiques <span id="statsYear"></span></h2>
+                        <div id="statsContent"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <div class="print-footer">
+            <p>Document généré le <span id="printDateTime"></span> - Calendrier Congés Luxembourg</p>
+        </div>
+    </div>
+
+    <!-- Modal Ajout Absence -->
+    <div class="modal" id="addAbsenceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Ajouter une Absence</h3>
+                <button class="modal-close" onclick="closeModal('addAbsenceModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Employé:</label>
+                <select id="absenceEmployee"></select>
+            </div>
+            <div class="form-group">
+                <label>Type d'absence:</label>
+                <select id="absenceType">
+                    <option value="conge">🌴 Congés payés</option>
+                    <option value="maladie">🏥 Maladie</option>
+                    <option value="recuperation">⏰ Récupération</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date de début:</label>
+                    <input type="date" id="absenceStart">
+                </div>
+                <div class="form-group">
+                    <label>Période début:</label>
+                    <select id="absenceStartPeriod">
+                        <option value="full">Journée complète</option>
+                        <option value="morning">Matin uniquement</option>
+                        <option value="afternoon">Après-midi uniquement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date de fin:</label>
+                    <input type="date" id="absenceEnd">
+                </div>
+                <div class="form-group">
+                    <label>Période fin:</label>
+                    <select id="absenceEndPeriod">
+                        <option value="full">Journée complète</option>
+                        <option value="morning">Matin uniquement</option>
+                        <option value="afternoon">Après-midi uniquement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Commentaire (optionnel):</label>
+                <input type="text" id="absenceComment" placeholder="Remarque...">
+            </div>
+            <div id="absencePreview" style="padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px;">
+                <small>Sélectionnez les dates pour voir le décompte</small>
+            </div>
+            <button onclick="addAbsence()" style="width: 100%;">✅ Enregistrer</button>
+        </div>
+    </div>
+
+    <!-- Modal Détail Jour -->
+    <div class="modal" id="dayDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="dayDetailTitle">Détail du jour</h3>
+                <button class="modal-close" onclick="closeModal('dayDetailModal')">&times;</button>
+            </div>
+            <div id="dayDetailContent"></div>
+            <div class="form-group" style="margin-top: 20px;">
+                <button onclick="openAddAbsenceForDay()" style="width: 100%;">➕ Ajouter absence ce jour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifier Employés -->
+    <div class="modal" id="editEmployeesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Gérer les Employés</h3>
+                <button class="modal-close" onclick="closeModal('editEmployeesModal')">&times;</button>
+            </div>
+            <p style="margin-bottom: 15px; opacity: 0.8; font-size: 0.9rem;">
+                ✅ = Employé actif (visible) | Décochez pour masquer un employé
+            </p>
+            <div id="editEmployeesContent"></div>
+            <button onclick="saveEmployees()" style="width: 100%; margin-top: 15px;">✅ Enregistrer</button>
+        </div>
+    </div>
+
+    <!-- Modal Report Congés -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔄 Gestion des Reports de Congés</h3>
+                <button class="modal-close" onclick="closeModal('reportModal')">&times;</button>
+            </div>
+            <p style="margin-bottom: 15px; opacity: 0.8;">
+                Gérez les congés reportés de l'année précédente.
+            </p>
+            <div class="form-group">
+                <label>Année concernée:</label>
+                <select id="reportYear" onchange="renderReportList()"></select>
+            </div>
+            <div id="reportList"></div>
+            <button onclick="saveReports()" style="width: 100%; margin-top: 15px;">✅ Enregistrer</button>
+        </div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwaInstallBanner">
+        <p style="margin-bottom: 10px;">📱 Installer l'application ?</p>
+        <button onclick="installPWA()">✅ Installer</button>
+        <button class="secondary" onclick="dismissPWA()">Plus tard</button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Input caché pour import -->
+    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="handleImport(event)">
+
+    <script>
+        // =====================================================
+        // CONFIGURATION JOURS FÉRIÉS LUXEMBOURG
+        // =====================================================
+        function getLuxembourgHolidays(year) {
+            const holidays = {};
+            
+            holidays[`${year}-01-01`] = "Nouvel An";
+            holidays[`${year}-05-01`] = "Fête du Travail";
+            holidays[`${year}-05-09`] = "Journée de l'Europe";
+            holidays[`${year}-06-23`] = "Fête Nationale";
+            holidays[`${year}-08-15`] = "Assomption";
+            holidays[`${year}-11-01`] = "Toussaint";
+            holidays[`${year}-12-25`] = "Noël";
+            holidays[`${year}-12-26`] = "Saint-Étienne";
+            
+            const a = year % 19;
+            const b = Math.floor(year / 100);
+            const c = year % 100;
+            const d = Math.floor(b / 4);
+            const e = b % 4;
+            const f = Math.floor((b + 8) / 25);
+            const g = Math.floor((b - f + 1) / 3);
+            const h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4);
+            const k = c % 4;
+            const l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const m = Math.floor((a + 11 * h + 22 * l) / 451);
+            const month = Math.floor((h + l - 7 * m + 114) / 31);
+            const day = ((h + l - 7 * m + 114) % 31) + 1;
+            
+            const easter = new Date(year, month - 1, day);
+            
+            const easterMonday = new Date(easter);
+            easterMonday.setDate(easter.getDate() + 1);
+            holidays[formatDate(easterMonday)] = "Lundi de Pâques";
+            
+            const ascension = new Date(easter);
+            ascension.setDate(easter.getDate() + 39);
+            holidays[formatDate(ascension)] = "Ascension";
+            
+            const pentecost = new Date(easter);
+            pentecost.setDate(easter.getDate() + 50);
+            holidays[formatDate(pentecost)] = "Lundi de Pentecôte";
+            
+            return holidays;
+        }
+
+        // =====================================================
+        // ÉTAT DE L'APPLICATION
+        // =====================================================
+        let state = {
+            currentYear: new Date().getFullYear(),
+            currentMonth: new Date().getMonth(),
+            selectedEmployee: null,
+            employees: [
+                { id: 1, name: "Martin Dupont", congesMax: 26, active: true },
+                { id: 2, name: "Sophie Weber", congesMax: 26, active: true },
+                { id: 3, name: "Lucas Schmidt", congesMax: 26, active: true },
+                { id: 4, name: "Emma Müller", congesMax: 26, active: true },
+                { id: 5, name: "Thomas Bernard", congesMax: 26, active: true },
+                { id: 6, name: "Marie Klein", congesMax: 26, active: true },
+                { id: 7, name: "Pierre Hoffmann", congesMax: 26, active: false },
+                { id: 8, name: "Julie Wagner", congesMax: 26, active: false },
+                { id: 9, name: "François Bauer", congesMax: 26, active: false },
+                { id: 10, name: "Claire Fischer", congesMax: 26, active: false }
+            ],
+            absences: [],
+            reports: {},
+            selectedDate: null
+        };
+
+        let deferredPrompt = null;
+        let xlsxLoaded = false;
+
+        // =====================================================
+        // FONCTIONS UTILITAIRES
+        // =====================================================
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function parseDate(dateStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function getMonthName(month) {
+            const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                           'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            return months[month];
+        }
+
+        function getDayName(day) {
+            const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+            return days[day];
+        }
+
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                   date.getMonth() === today.getMonth() &&
+                   date.getFullYear() === today.getFullYear();
+        }
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        // Obtenir uniquement les employés actifs
+        function getActiveEmployees() {
+            return state.employees.filter(emp => emp.active);
+        }
+
+        // =====================================================
+        // CALCUL DES DEMI-JOURNÉES
+        // =====================================================
+        function calculateAbsenceDays(absence, year = null) {
+            const start = parseDate(absence.startDate);
+            const end = parseDate(absence.endDate);
+            let totalDays = 0;
+            
+            const currentDate = new Date(start);
+            while (currentDate <= end) {
+                if (year === null || currentDate.getFullYear() === year) {
+                    if (!isWeekend(currentDate)) {
+                        const holidays = getLuxembourgHolidays(currentDate.getFullYear());
+                        const dateStr = formatDate(currentDate);
+                        
+                        if (!holidays[dateStr]) {
+                            let dayValue = 1;
+                            
+                            if (absence.startDate === absence.endDate) {
+                                if (absence.startPeriod === 'morning' && absence.endPeriod === 'morning') dayValue = 0.5;
+                                else if (absence.startPeriod === 'afternoon' && absence.endPeriod === 'afternoon') dayValue = 0.5;
+                                else if (absence.startPeriod === 'afternoon' && absence.endPeriod === 'morning') dayValue = 0.5;
+                            } else {
+                                if (dateStr === absence.startDate) {
+                                    if (absence.startPeriod === 'afternoon') dayValue = 0.5;
+                                }
+                                if (dateStr === absence.endDate) {
+                                    if (absence.endPeriod === 'morning') dayValue = 0.5;
+                                }
+                            }
+                            
+                            totalDays += dayValue;
+                        }
+                    }
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return totalDays;
+        }
+
+        function getEmployeeStats(empId, year) {
+            const stats = { conge: 0, maladie: 0, recuperation: 0 };
+            
+            state.absences
+                .filter(a => a.employeeId === empId)
+                .forEach(absence => {
+                    const days = calculateAbsenceDays(absence, year);
+                    if (stats.hasOwnProperty(absence.type)) {
+                        stats[absence.type] += days;
+                    }
+                });
+            
+            return stats;
+        }
+
+        function getReportedDays(empId, year) {
+            const yearReports = state.reports[year] || {};
+            return yearReports[empId] || 0;
+        }
+
+        function getTotalCongesAvailable(emp, year) {
+            return emp.congesMax + getReportedDays(emp.id, year);
+        }
+
+        // =====================================================
+        // INITIALISATION
+        // =====================================================
+        function init() {
+            loadData();
+            populateYearSelect();
+            populateMonthSelect();
+            renderEmployeeList();
+            renderCalendar();
+            renderYearView();
+            renderStats();
+            setupAbsencePreview();
+            initPWA();
+            loadXLSX();
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('luxembourgCalendarData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.employees) {
+                    state.employees = data.employees;
+                    // Migration: ajouter le champ active s'il n'existe pas
+                    state.employees.forEach(emp => {
+                        if (emp.active === undefined) emp.active = true;
+                    });
+                }
+                state.absences = data.absences || [];
+                state.reports = data.reports || {};
+                
+                state.absences.forEach(a => {
+                    if (!a.startPeriod) a.startPeriod = 'full';
+                    if (!a.endPeriod) a.endPeriod = 'full';
+                });
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('luxembourgCalendarData', JSON.stringify({
+                employees: state.employees,
+                absences: state.absences,
+                reports: state.reports
+            }));
+        }
+
+        function loadXLSX() {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
+            script.onload = () => {
+                xlsxLoaded = true;
+                console.log('✅ Bibliothèque Excel chargée');
+            };
+            script.onerror = () => {
+                const script2 = document.createElement('script');
+                script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script2.onload = () => {
+                    xlsxLoaded = true;
+                    console.log('✅ Bibliothèque Excel chargée (CDN alternatif)');
+                };
+                script2.onerror = () => console.log('❌ Bibliothèque Excel non disponible');
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script);
+        }
+
+        function populateYearSelect() {
+            const select = document.getElementById('yearSelect');
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 5; y <= currentYear + 10; y++) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                if (y === state.currentYear) option.selected = true;
+                select.appendChild(option);
+            }
+            select.addEventListener('change', (e) => {
+                state.currentYear = parseInt(e.target.value);
+                renderAll();
+            });
+        }
+
+        function populateMonthSelect() {
+            const select = document.getElementById('monthSelect');
+            select.value = state.currentMonth;
+            select.addEventListener('change', (e) => {
+                state.currentMonth = parseInt(e.target.value);
+                renderCalendar();
+            });
+        }
+
+        function renderAll() {
+            renderCalendar();
+            renderYearView();
+            renderStats();
+            renderEmployeeList();
+        }
+
+        // =====================================================
+        // RENDU DES EMPLOYÉS (SEULEMENT ACTIFS)
+        // =====================================================
+        function renderEmployeeList() {
+            const container = document.getElementById('employeeList');
+            const countEl = document.getElementById('employeeCount');
+            container.innerHTML = '';
+            
+            const activeEmployees = getActiveEmployees();
+            countEl.textContent = `${activeEmployees.length} employé${activeEmployees.length > 1 ? 's' : ''} actif${activeEmployees.length > 1 ? 's' : ''}`;
+            
+            activeEmployees.forEach(emp => {
+                const stats = getEmployeeStats(emp.id, state.currentYear);
+                const totalAvailable = getTotalCongesAvailable(emp, state.currentYear);
+                const solde = totalAvailable - stats.conge;
+                const reported = getReportedDays(emp.id, state.currentYear);
+                
+                const div = document.createElement('div');
+                div.className = `employee-item ${state.selectedEmployee === emp.id ? 'active' : ''}`;
+                div.onclick = () => {
+                    state.selectedEmployee = state.selectedEmployee === emp.id ? null : emp.id;
+                    renderEmployeeList();
+                    renderCalendar();
+                    renderYearView();
+                };
+                
+                const initials = emp.name.split(' ').map(n => n[0]).join('');
+                let reportInfo = reported > 0 ? ` <span style="color:#FFC107">(+${reported})</span>` : '';
+                
+                div.innerHTML = `
+                    <div class="employee-avatar">${initials}</div>
+                    <div class="employee-info">
+                        <div class="employee-name">${emp.name}</div>
+                        <div class="employee-stats">
+                            🌴 ${stats.conge}/${totalAvailable}j${reportInfo} | 🏥 ${stats.maladie}j | ⏰ ${stats.recuperation}j
+                        </div>
+                        <div class="employee-stats ${solde < 5 ? 'solde-warning' : 'solde-ok'}">
+                            Solde: ${solde}j restants
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            populateEmployeeSelect();
+        }
+
+        // =====================================================
+        // RENDU DU CALENDRIER MENSUEL
+        // =====================================================
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const holidays = getLuxembourgHolidays(state.currentYear);
+            
+            document.getElementById('currentMonthYear').textContent = 
+                `${getMonthName(state.currentMonth)} ${state.currentYear}`;
+            document.getElementById('monthSelect').value = state.currentMonth;
+            document.getElementById('yearSelect').value = state.currentYear;
+            
+            grid.innerHTML = '';
+            
+            ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+            
+            const firstDay = new Date(state.currentYear, state.currentMonth, 1);
+            let startDay = firstDay.getDay() - 1;
+            if (startDay < 0) startDay = 6;
+            
+            const lastDay = new Date(state.currentYear, state.currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            
+            const prevMonth = new Date(state.currentYear, state.currentMonth, 0);
+            for (let i = startDay - 1; i >= 0; i--) {
+                const cell = createDayCell(prevMonth.getDate() - i, true, 
+                    new Date(state.currentYear, state.currentMonth - 1, prevMonth.getDate() - i));
+                grid.appendChild(cell);
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(state.currentYear, state.currentMonth, day);
+                const cell = createDayCell(day, false, date, holidays);
+                grid.appendChild(cell);
+            }
+            
+            const totalCells = grid.children.length;
+            const remaining = 42 - totalCells + 7;
+            for (let i = 1; i <= remaining && totalCells + i <= 49; i++) {
+                const cell = createDayCell(i, true, 
+                    new Date(state.currentYear, state.currentMonth + 1, i));
+                grid.appendChild(cell);
+            }
+        }
+
+        function createDayCell(day, otherMonth, date, holidays = {}) {
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            
+            const dateStr = formatDate(date);
+            const holiday = holidays[dateStr];
+            
+            if (otherMonth) cell.classList.add('other-month');
+            if (isWeekend(date)) cell.classList.add('weekend');
+            if (holiday) cell.classList.add('ferie');
+            if (isToday(date)) cell.classList.add('today');
+            
+            let content = `<div class="day-number">${day}</div>`;
+            if (holiday) {
+                content += `<div class="day-ferie-name">${holiday}</div>`;
+            }
+            
+            // Filtrer les absences pour n'afficher que celles des employés ACTIFS
+            const dayAbsences = getAbsencesForDate(dateStr).filter(abs => {
+                const emp = state.employees.find(e => e.id === abs.employeeId);
+                return emp && emp.active;
+            });
+            
+            if (dayAbsences.length > 0) {
+                content += '<div class="day-events">';
+                dayAbsences.forEach(abs => {
+                    if (!state.selectedEmployee || abs.employeeId === state.selectedEmployee) {
+                        const emp = state.employees.find(e => e.id === abs.employeeId);
+                        let periodIndicator = '';
+                        
+                        if (dateStr === abs.startDate && dateStr === abs.endDate) {
+                            if (abs.startPeriod === 'morning' && abs.endPeriod === 'morning') {
+                                periodIndicator = ' <span class="half-day-indicator">(M)</span>';
+                            } else if (abs.startPeriod === 'afternoon' || abs.endPeriod === 'afternoon') {
+                                periodIndicator = ' <span class="half-day-indicator">(AM)</span>';
+                            }
+                        } else if (dateStr === abs.startDate && abs.startPeriod === 'afternoon') {
+                            periodIndicator = ' <span class="half-day-indicator">(AM→)</span>';
+                        } else if (dateStr === abs.endDate && abs.endPeriod === 'morning') {
+                            periodIndicator = ' <span class="half-day-indicator">(→M)</span>';
+                        }
+                        
+                        content += `<div class="event-badge event-${abs.type}">${emp ? emp.name.split(' ')[0] : '?'}${periodIndicator}</div>`;
+                    }
+                });
+                content += '</div>';
+            }
+            
+            cell.innerHTML = content;
+            cell.onclick = () => openDayDetail(date);
+            
+            return cell;
+        }
+
+        function getAbsencesForDate(dateStr) {
+            return state.absences.filter(a => dateStr >= a.startDate && dateStr <= a.endDate);
+        }
+
+        // =====================================================
+        // NAVIGATION
+        // =====================================================
+        function changeMonth(delta) {
+            state.currentMonth += delta;
+            if (state.currentMonth > 11) {
+                state.currentMonth = 0;
+                state.currentYear++;
+            } else if (state.currentMonth < 0) {
+                state.currentMonth = 11;
+                state.currentYear--;
+            }
+            renderCalendar();
+            renderEmployeeList();
+        }
+
+        function goToToday() {
+            state.currentYear = new Date().getFullYear();
+            state.currentMonth = new Date().getMonth();
+            renderAll();
+        }
+
+        // =====================================================
+        // VUE ANNUELLE
+        // =====================================================
+        function renderYearView() {
+            document.getElementById('yearViewTitle').textContent = `Année ${state.currentYear}`;
+            const container = document.getElementById('yearViewGrid');
+            container.innerHTML = '';
+            
+            const holidays = getLuxembourgHolidays(state.currentYear);
+            const activeEmployees = getActiveEmployees();
+            
+            for (let month = 0; month < 12; month++) {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'mini-month';
+                
+                let html = `<h4>${getMonthName(month)}</h4><div class="mini-calendar">`;
+                
+                ['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach(d => {
+                    html += `<div class="mini-day" style="font-weight: bold; font-size: 0.6rem;">${d}</div>`;
+                });
+                
+                const firstDay = new Date(state.currentYear, month, 1);
+                let startDay = firstDay.getDay() - 1;
+                if (startDay < 0) startDay = 6;
+                
+                const daysInMonth = new Date(state.currentYear, month + 1, 0).getDate();
+                
+                for (let i = 0; i < startDay; i++) html += '<div class="mini-day"></div>';
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(state.currentYear, month, day);
+                    const dateStr = formatDate(date);
+                    let classes = 'mini-day';
+                    
+                    if (isWeekend(date)) classes += ' weekend';
+                    if (holidays[dateStr]) classes += ' ferie';
+                    if (isToday(date)) classes += ' today';
+                    
+                    // Filtrer pour les employés actifs uniquement
+                    const absences = getAbsencesForDate(dateStr).filter(abs => {
+                        const emp = state.employees.find(e => e.id === abs.employeeId);
+                        return emp && emp.active;
+                    });
+                    
+                    if (absences.length > 0) {
+                        const filtered = state.selectedEmployee 
+                            ? absences.filter(a => a.employeeId === state.selectedEmployee)
+                            : absences;
+                        if (filtered.length > 0) classes += ` has-${filtered[0].type}`;
+                    }
+                    
+                    html += `<div class="${classes}" onclick="goToDate(${state.currentYear}, ${month}, ${day})">${day}</div>`;
+                }
+                
+                html += '</div>';
+                monthDiv.innerHTML = html;
+                container.appendChild(monthDiv);
+            }
+        }
+
+        function goToDate(year, month, day) {
+            state.currentYear = year;
+            state.currentMonth = month;
+            switchTab('month');
+            renderCalendar();
+            renderEmployeeList();
+        }
+
+        // =====================================================
+        // STATISTIQUES (SEULEMENT EMPLOYÉS ACTIFS)
+        // =====================================================
+        function renderStats() {
+            document.getElementById('statsYear').textContent = state.currentYear;
+            const container = document.getElementById('statsContent');
+            const activeEmployees = getActiveEmployees();
+            
+            let html = '<div class="stats-grid">';
+            
+            let totalConge = 0, totalMaladie = 0, totalRecup = 0, totalReported = 0;
+            
+            activeEmployees.forEach(emp => {
+                const stats = getEmployeeStats(emp.id, state.currentYear);
+                totalConge += stats.conge;
+                totalMaladie += stats.maladie;
+                totalRecup += stats.recuperation;
+                totalReported += getReportedDays(emp.id, state.currentYear);
+            });
+            
+            html += `
+                <div class="stat-card"><div class="stat-value" style="color: #4CAF50;">${totalConge}</div><div class="stat-label">🌴 Jours congés</div></div>
+                <div class="stat-card"><div class="stat-value" style="color: #f44336;">${totalMaladie}</div><div class="stat-label">🏥 Jours maladie</div></div>
+                <div class="stat-card"><div class="stat-value" style="color: #FF9800;">${totalRecup}</div><div class="stat-label">⏰ Jours récup</div></div>
+                <div class="stat-card"><div class="stat-value" style="color: #FFC107;">${totalReported}</div><div class="stat-label">🔄 Jours reportés</div></div>
+                <div class="stat-card"><div class="stat-value" style="color: #9C27B0;">${Object.keys(getLuxembourgHolidays(state.currentYear)).length}</div><div class="stat-label">🎉 Jours fériés</div></div>
+            </div>`;
+            
+            html += '<div class="table-container"><table class="data-table">';
+            html += `<tr><th style="text-align: left;">Employé</th><th>🌴 Base</th><th>🔄 Report</th><th>Total</th><th>Pris</th><th>Solde</th><th>🏥</th><th>⏰</th></tr>`;
+            
+            activeEmployees.forEach(emp => {
+                const stats = getEmployeeStats(emp.id, state.currentYear);
+                const reported = getReportedDays(emp.id, state.currentYear);
+                const totalAvailable = getTotalCongesAvailable(emp, state.currentYear);
+                const solde = totalAvailable - stats.conge;
+                
+                html += `<tr>
+                    <td style="text-align: left;">${emp.name}</td>
+                    <td>${emp.congesMax}</td>
+                    <td style="color: #FFC107;">${reported > 0 ? '+' + reported : '-'}</td>
+                    <td><strong>${totalAvailable}</strong></td>
+                    <td>${stats.conge}</td>
+                    <td style="color: ${solde < 5 ? '#f44336' : '#4CAF50'}; font-weight: bold;">${solde}</td>
+                    <td>${stats.maladie}</td>
+                    <td>${stats.recuperation}</td>
+                </tr>`;
+            });
+            
+            html += '</table></div>';
+            container.innerHTML = html;
+        }
+
+        // =====================================================
+        // ONGLETS
+        // =====================================================
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            const tabIndex = tab === 'month' ? 0 : tab === 'year' ? 1 : 2;
+            document.querySelectorAll('.tab')[tabIndex].classList.add('active');
+            document.getElementById(tab + 'View').classList.add('active');
+            
+            if (tab === 'year') renderYearView();
+            if (tab === 'stats') renderStats();
+        }
+
+        // =====================================================
+        // MODALES
+        // =====================================================
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // Peupler le select avec seulement les employés ACTIFS
+        function populateEmployeeSelect() {
+            const select = document.getElementById('absenceEmployee');
+            if (!select) return;
+            select.innerHTML = '';
+            
+            getActiveEmployees().forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = emp.name;
+                select.appendChild(option);
+            });
+        }
+
+        function openAddAbsenceModal() {
+            if (getActiveEmployees().length === 0) {
+                alert('⚠️ Aucun employé actif. Activez au moins un employé dans "Gérer les employés".');
+                return;
+            }
+            
+            document.getElementById('absenceStart').value = '';
+            document.getElementById('absenceEnd').value = '';
+            document.getElementById('absenceComment').value = '';
+            document.getElementById('absenceStartPeriod').value = 'full';
+            document.getElementById('absenceEndPeriod').value = 'full';
+            document.getElementById('absencePreview').innerHTML = '<small>Sélectionnez les dates pour voir le décompte</small>';
+            
+            if (state.selectedEmployee) {
+                const emp = state.employees.find(e => e.id === state.selectedEmployee);
+                if (emp && emp.active) {
+                    document.getElementById('absenceEmployee').value = state.selectedEmployee;
+                }
+            }
+            openModal('addAbsenceModal');
+        }
+
+        function setupAbsencePreview() {
+            ['absenceStart', 'absenceEnd', 'absenceStartPeriod', 'absenceEndPeriod', 'absenceType'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', updateAbsencePreview);
+            });
+        }
+
+        function updateAbsencePreview() {
+            const startDate = document.getElementById('absenceStart').value;
+            const endDate = document.getElementById('absenceEnd').value;
+            const startPeriod = document.getElementById('absenceStartPeriod').value;
+            const endPeriod = document.getElementById('absenceEndPeriod').value;
+            const type = document.getElementById('absenceType').value;
+            const preview = document.getElementById('absencePreview');
+            
+            if (!startDate || !endDate) {
+                preview.innerHTML = '<small>Sélectionnez les dates pour voir le décompte</small>';
+                return;
+            }
+            
+            if (startDate > endDate) {
+                preview.innerHTML = '<small style="color: #f44336;">⚠️ Date de fin avant date de début</small>';
+                return;
+            }
+            
+            const days = calculateAbsenceDays({ startDate, endDate, startPeriod, endPeriod, type });
+            const typeLabels = { conge: '🌴 Congés', maladie: '🏥 Maladie', recuperation: '⏰ Récupération' };
+            
+            preview.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${typeLabels[type]}</span>
+                    <strong style="font-size: 1.2rem;">${days} jour${days > 1 ? 's' : ''}</strong>
+                </div>
+                <small style="opacity: 0.7;">Hors week-ends et jours fériés</small>
+            `;
+        }
+
+        function addAbsence() {
+            const employeeId = parseInt(document.getElementById('absenceEmployee').value);
+            const type = document.getElementById('absenceType').value;
+            const startDate = document.getElementById('absenceStart').value;
+            const endDate = document.getElementById('absenceEnd').value;
+            const startPeriod = document.getElementById('absenceStartPeriod').value;
+            const endPeriod = document.getElementById('absenceEndPeriod').value;
+            const comment = document.getElementById('absenceComment').value;
+            
+            if (!startDate || !endDate) { alert('Veuillez remplir les dates'); return; }
+            if (startDate > endDate) { alert('La date de fin doit être après la date de début'); return; }
+            
+            state.absences.push({ id: Date.now(), employeeId, type, startDate, endDate, startPeriod, endPeriod, comment });
+            
+            saveData();
+            closeModal('addAbsenceModal');
+            renderAll();
+            showToast('✅ Absence ajoutée');
+        }
+
+        function openDayDetail(date) {
+            state.selectedDate = date;
+            const dateStr = formatDate(date);
+            const holidays = getLuxembourgHolidays(date.getFullYear());
+            
+            document.getElementById('dayDetailTitle').textContent = 
+                `${getDayName(date.getDay())} ${date.getDate()} ${getMonthName(date.getMonth())} ${date.getFullYear()}`;
+            
+            let html = '';
+            
+            if (holidays[dateStr]) {
+                html += `<div style="padding: 10px; background: rgba(156, 39, 176, 0.3); border-radius: 8px; margin-bottom: 15px;">🎉 <strong>${holidays[dateStr]}</strong></div>`;
+            }
+            
+            if (isWeekend(date)) {
+                html += `<div style="padding: 10px; background: rgba(96, 125, 139, 0.3); border-radius: 8px; margin-bottom: 15px;">📅 Week-end</div>`;
+            }
+            
+            // Filtrer pour n'afficher que les absences des employés actifs
+            const absences = getAbsencesForDate(dateStr).filter(abs => {
+                const emp = state.employees.find(e => e.id === abs.employeeId);
+                return emp && emp.active;
+            });
+            
+            if (absences.length > 0) {
+                html += '<h4 style="margin-bottom: 10px;">Absences:</h4>';
+                absences.forEach(abs => {
+                    const emp = state.employees.find(e => e.id === abs.employeeId);
+                    const typeLabels = { conge: '🌴 Congés', maladie: '🏥 Maladie', recuperation: '⏰ Récupération' };
+                    const periodLabels = { full: 'Journée', morning: 'Matin', afternoon: 'Après-midi' };
+                    let periodInfo = abs.startPeriod !== 'full' || abs.endPeriod !== 'full' 
+                        ? `<br><small>Début: ${periodLabels[abs.startPeriod]} → Fin: ${periodLabels[abs.endPeriod]}</small>` : '';
+                    
+                    html += `
+                        <div class="absence-item">
+                            <div>
+                                <strong>${emp ? emp.name : 'N/A'}</strong><br>
+                                <small>${typeLabels[abs.type]} - ${calculateAbsenceDays(abs)}j</small><br>
+                                <small>${abs.startDate} → ${abs.endDate}</small>
+                                ${periodInfo}
+                                ${abs.comment ? `<br><small style="opacity: 0.7; font-style: italic;">"${abs.comment}"</small>` : ''}
+                            </div>
+                            <button class="danger" onclick="deleteAbsence(${abs.id})" style="padding: 5px 10px;">🗑️</button>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="opacity: 0.7;">Aucune absence ce jour.</p>';
+            }
+            
+            document.getElementById('dayDetailContent').innerHTML = html;
+            openModal('dayDetailModal');
+        }
+
+        function openAddAbsenceForDay() {
+            closeModal('dayDetailModal');
+            const dateStr = formatDate(state.selectedDate);
+            document.getElementById('absenceStart').value = dateStr;
+            document.getElementById('absenceEnd').value = dateStr;
+            document.getElementById('absenceStartPeriod').value = 'full';
+            document.getElementById('absenceEndPeriod').value = 'full';
+            openAddAbsenceModal();
+            updateAbsencePreview();
+        }
+
+        function deleteAbsence(id) {
+            if (confirm('Supprimer cette absence ?')) {
+                state.absences = state.absences.filter(a => a.id !== id);
+                saveData();
+                closeModal('dayDetailModal');
+                renderAll();
+                showToast('🗑️ Absence supprimée');
+            }
+        }
+
+        // =====================================================
+        // GESTION DES EMPLOYÉS (AVEC ACTIVATION/DÉSACTIVATION)
+        // =====================================================
+        function openEditEmployeesModal() {
+            let html = '';
+            state.employees.forEach((emp, index) => {
+                html += `
+                    <div class="employee-edit-item ${emp.active ? '' : 'inactive'}">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="empActive${index}" ${emp.active ? 'checked' : ''} 
+                                   onchange="toggleEmployeePreview(${index})" title="Activer/Désactiver">
+                        </div>
+                        <input type="text" id="empName${index}" value="${emp.name}" placeholder="Nom de l'employé">
+                        <input type="number" id="empConges${index}" value="${emp.congesMax}" style="width: 70px;" min="0" title="Jours de congés">
+                        <span style="font-size: 0.8rem; opacity: 0.7;">j/an</span>
+                    </div>
+                `;
+            });
+            document.getElementById('editEmployeesContent').innerHTML = html;
+            openModal('editEmployeesModal');
+        }
+
+        function toggleEmployeePreview(index) {
+            const checkbox = document.getElementById(`empActive${index}`);
+            const item = checkbox.closest('.employee-edit-item');
+            if (checkbox.checked) {
+                item.classList.remove('inactive');
+            } else {
+                item.classList.add('inactive');
+            }
+        }
+
+        function saveEmployees() {
+            state.employees.forEach((emp, index) => {
+                emp.name = document.getElementById(`empName${index}`).value.trim() || `Employé ${index + 1}`;
+                emp.congesMax = parseInt(document.getElementById(`empConges${index}`).value) || 26;
+                emp.active = document.getElementById(`empActive${index}`).checked;
+            });
+            
+            // Vérifier qu'il y a au moins un employé actif
+            const activeCount = state.employees.filter(e => e.active).length;
+            if (activeCount === 0) {
+                alert('⚠️ Vous devez avoir au moins un employé actif !');
+                state.employees[0].active = true;
+            }
+            
+            // Réinitialiser la sélection si l'employé sélectionné est désactivé
+            if (state.selectedEmployee) {
+                const selectedEmp = state.employees.find(e => e.id === state.selectedEmployee);
+                if (selectedEmp && !selectedEmp.active) {
+                    state.selectedEmployee = null;
+                }
+            }
+            
+            saveData();
+            closeModal('editEmployeesModal');
+            renderAll();
+            showToast('✅ Employés mis à jour');
+        }
+
+        // =====================================================
+        // GESTION DES REPORTS (SEULEMENT EMPLOYÉS ACTIFS)
+        // =====================================================
+        function openReportModal() {
+            const select = document.getElementById('reportYear');
+            select.innerHTML = '';
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                if (y === state.currentYear) option.selected = true;
+                select.appendChild(option);
+            }
+            renderReportList();
+            openModal('reportModal');
+        }
+
+        function renderReportList() {
+            const year = document.getElementById('reportYear').value;
+            const activeEmployees = getActiveEmployees();
+            
+            let html = `<p style="margin: 15px 0; padding: 10px; background: rgba(255,193,7,0.2); border-radius: 8px;">
+                📌 Congés reportés de ${year - 1} vers ${year}
+            </p>`;
+            
+            if (activeEmployees.length === 0) {
+                html += '<p style="opacity: 0.7;">Aucun employé actif.</p>';
+            } else {
+                activeEmployees.forEach(emp => {
+                    const currentReport = getReportedDays(emp.id, year);
+                    html += `
+                        <div class="report-item">
+                            <span>${emp.name}</span>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="number" id="report_${emp.id}" value="${currentReport}" min="0" max="99" style="width: 60px; padding: 5px;">
+                                <span style="font-size: 0.9rem;">jours</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            document.getElementById('reportList').innerHTML = html;
+        }
+
+        function saveReports() {
+            const year = document.getElementById('reportYear').value;
+            if (!state.reports[year]) state.reports[year] = {};
+            
+            getActiveEmployees().forEach(emp => {
+                const input = document.getElementById(`report_${emp.id}`);
+                if (input) {
+                    state.reports[year][emp.id] = parseInt(input.value) || 0;
+                }
+            });
+            
+            saveData();
+            closeModal('reportModal');
+            renderAll();
+            showToast('✅ Reports enregistrés');
+        }
+
+        // =====================================================
+        // EXPORT EXCEL (SEULEMENT EMPLOYÉS ACTIFS)
+        // =====================================================
+        function exportExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert('⚠️ La bibliothèque Excel n\'est pas encore chargée.\n\nSolutions :\n1. Attendez quelques secondes et réessayez\n2. Vérifiez votre connexion internet\n3. Utilisez le bouton "Backup" pour exporter en JSON');
+                return;
+            }
+
+            try {
+                const year = state.currentYear;
+                const activeEmployees = getActiveEmployees();
+                const typeLabels = { conge: 'Congés', maladie: 'Maladie', recuperation: 'Récupération' };
+                const periodLabels = { full: 'Journée', morning: 'Matin', afternoon: 'Après-midi' };
+                const monthShortNames = ['01-Jan', '02-Fév', '03-Mar', '04-Avr', '05-Mai', '06-Juin', 
+                                          '07-Juil', '08-Août', '09-Sep', '10-Oct', '11-Nov', '12-Déc'];
+
+                // Feuille 1: Résumé
+                const summaryData = [
+                    ['RÉCAPITULATIF CONGÉS ' + year],
+                    [`Généré le ${new Date().toLocaleDateString('fr-FR')} - ${activeEmployees.length} employés actifs`],
+                    [],
+                    ['Employé', 'Congés annuels', 'Report N-1', 'Total disponible', 'Congés pris', 'Solde', 'Maladie', 'Récupération', 'Total absences']
+                ];
+                
+                activeEmployees.forEach(emp => {
+                    const stats = getEmployeeStats(emp.id, year);
+                    const reported = getReportedDays(emp.id, year);
+                    const total = getTotalCongesAvailable(emp, year);
+                    summaryData.push([
+                        emp.name, emp.congesMax, reported, total, stats.conge,
+                        total - stats.conge, stats.maladie, stats.recuperation,
+                        stats.conge + stats.maladie + stats.recuperation
+                    ]);
+                });
+
+                // Feuille 2: Détail absences
+                const detailData = [
+                    ['DÉTAIL DES ABSENCES ' + year],
+                    [],
+                    ['Employé', 'Type', 'Date début', 'Période début', 'Date fin', 'Période fin', 'Nb jours', 'Commentaire']
+                ];
+                
+                const activeIds = activeEmployees.map(e => e.id);
+                state.absences
+                    .filter(a => activeIds.includes(a.employeeId) && (a.startDate.startsWith(year) || a.endDate.startsWith(year)))
+                    .sort((a, b) => a.startDate.localeCompare(b.startDate))
+                    .forEach(abs => {
+                        const emp = state.employees.find(e => e.id === abs.employeeId);
+                        detailData.push([
+                            emp ? emp.name : 'Inconnu',
+                            typeLabels[abs.type] || abs.type,
+                            abs.startDate,
+                            periodLabels[abs.startPeriod] || 'Journée',
+                            abs.endDate,
+                            periodLabels[abs.endPeriod] || 'Journée',
+                            calculateAbsenceDays(abs),
+                            abs.comment || ''
+                        ]);
+                    });
+
+                // Créer le workbook
+                const wb = XLSX.utils.book_new();
+                
+                const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+                ws1['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
+                XLSX.utils.book_append_sheet(wb, ws1, 'Résumé');
+                
+                const ws2 = XLSX.utils.aoa_to_sheet(detailData);
+                ws2['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 30 }];
+                XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
+
+                // Feuilles mensuelles
+                for (let month = 0; month < 12; month++) {
+                    const monthData = [
+                        [`${getMonthName(month).toUpperCase()} ${year}`],
+                        [],
+                        ['Date', 'Jour', 'Type'].concat(activeEmployees.map(e => e.name.split(' ')[0]))
+                    ];
+                    
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const holidays = getLuxembourgHolidays(year);
+                    
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const date = new Date(year, month, day);
+                        const dateStr = formatDate(date);
+                        let dayType = holidays[dateStr] ? 'Férié' : (isWeekend(date) ? 'WE' : '');
+                        
+                        const row = [dateStr, getDayName(date.getDay()).substring(0, 3), dayType];
+                        
+                        activeEmployees.forEach(emp => {
+                            const empAbs = getAbsencesForDate(dateStr).find(a => a.employeeId === emp.id);
+                            if (empAbs) {
+                                let val = typeLabels[empAbs.type] || '';
+                                if (dateStr === empAbs.startDate && empAbs.startPeriod !== 'full') val += ' (½)';
+                                else if (dateStr === empAbs.endDate && empAbs.endPeriod !== 'full') val += ' (½)';
+                                row.push(val);
+                            } else {
+                                row.push('');
+                            }
+                        });
+                        
+                        monthData.push(row);
+                    }
+                    
+                    const ws = XLSX.utils.aoa_to_sheet(monthData);
+                    XLSX.utils.book_append_sheet(wb, ws, monthShortNames[month]);
+                }
+
+                XLSX.writeFile(wb, `calendrier-conges-${year}.xlsx`);
+                showToast('📊 Fichier Excel généré !');
+                
+            } catch (error) {
+                console.error('Erreur export Excel:', error);
+                alert('❌ Erreur lors de l\'export Excel:\n' + error.message);
+            }
+        }
+
+        // =====================================================
+        // EXPORT/IMPORT JSON
+        // =====================================================
+        function exportData() {
+            const data = {
+                employees: state.employees,
+                absences: state.absences,
+                reports: state.reports,
+                exportDate: new Date().toISOString(),
+                version: '2.1'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup-conges-${formatDate(new Date())}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 Backup créé !');
+        }
+
+        function importData() { document.getElementById('importFile').click(); }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.employees) {
+                        state.employees = data.employees;
+                        // Migration
+                        state.employees.forEach(emp => {
+                            if (emp.active === undefined) emp.active = true;
+                        });
+                    }
+                    if (data.absences) {
+                        state.absences = data.absences;
+                        state.absences.forEach(a => {
+                            if (!a.startPeriod) a.startPeriod = 'full';
+                            if (!a.endPeriod) a.endPeriod = 'full';
+                        });
+                    }
+                    if (data.reports) state.reports = data.reports;
+                    
+                    saveData();
+                    renderAll();
+                    showToast('✅ Données restaurées !');
+                } catch (err) {
+                    alert('❌ Erreur: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // =====================================================
+        // IMPRESSION
+        // =====================================================
+        function printCalendar() {
+            document.getElementById('printDate').textContent = `${getMonthName(state.currentMonth)} ${state.currentYear}`;
+            document.getElementById('printDateTime').textContent = new Date().toLocaleString('fr-FR');
+            window.print();
+        }
+
+        // =====================================================
+        // PWA
+        // =====================================================
+        function initPWA() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').catch(() => console.log('SW non disponible'));
+            }
+            
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                setTimeout(() => {
+                    if (deferredPrompt) document.getElementById('pwaInstallBanner').classList.add('show');
+                }, 3000);
+            });
+        }
+
+        function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(() => {
+                deferredPrompt = null;
+                document.getElementById('pwaInstallBanner').classList.remove('show');
+            });
+        }
+
+        function dismissPWA() { document.getElementById('pwaInstallBanner').classList.remove('show'); }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
